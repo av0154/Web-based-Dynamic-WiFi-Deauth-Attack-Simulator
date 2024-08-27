@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Deauthentication Attack Tool</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Wi-Fi Deauthentication Attack Tool</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} mt-4">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" action="/">
+            <div class="form-group">
+                <label for="interface">Network Interface:</label>
+                <input type="text" class="form-control" id="interface" name="interface" placeholder="Enter interface (e.g., wlan0mon)">
+            </div>
+            <button type="submit" class="btn btn-primary">Scan APs</button>
+        </form>
+
+        {% if aps %}
+            <hr>
+            <h2>Discovered Access Points (APs)</h2>
+            <ul class="list-group">
+                {% for ap in aps %}
+                    <li class="list-group-item">
+                        {{ ap }}
+                        <button class="btn btn-secondary btn-sm float-right scan-clients-btn" data-ap="{{ ap }}">Scan Clients</button>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div id="clients-section" style="display: none;">
+                <hr>
+                <h2>Discovered Clients</h2>
+                <ul class="list-group" id="client-list"></ul>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.scan-clients-btn').click(function() {
+                var ap_mac = $(this).data('ap');
+                var interface = $('#interface').val();
+                
+                $.post('/scan_clients', { interface: interface, ap_mac: ap_mac }, function(data) {
+                    $('#client-list').empty();
+                    if (data.clients.length === 0) {
+                        $('#client-list').append('<li class="list-group-item">No clients found.</li>');
+                    } else {
+                        data.clients.forEach(function(client) {
+                            $('#client-list').append(
+                                '<li class="list-group-item">' + client +
+                                ' <button class="btn btn-danger btn-sm float-right deauth-btn" data-ap="' + ap_mac + '" data-client="' + client + '">Deauth</button></li>'
+                            );
+                        });
+                    }
+                    $('#clients-section').show();
+                });
+            });
+
+            $(document).on('click', '.deauth-btn', function() {
+                var ap_mac = $(this).data('ap');
+                var client_mac = $(this).data('client');
+                var interface = $('#interface').val();
+
+                $.post('/deauth', { interface: interface, ap_mac: ap_mac, client_mac: client_mac }, function() {
+                    alert('Deauthentication attack initiated.');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
